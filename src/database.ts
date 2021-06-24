@@ -4,8 +4,7 @@ import { User } from './db/user';
 import { Entity } from './db/entity';
 
 export class MongoDatabase extends Database {
-    name = 'deepkit-framework';
     constructor() {
-        super(new MongoDatabaseAdapter('mongodb://localhost/deepkit-tests'), [User, Entity]);
+        super(new MongoDatabaseAdapter('mongodb://localhost/deepkit-tests-db'), [User, Entity]);
     }
 }

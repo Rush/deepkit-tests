@@ -19,8 +19,7 @@ export class TestCommand implements Command {
         const entity3 = new Entity(user, entity1);
         const session = this.db.createSession();
         session.add(entity1, entity2, entity3);
-        session.commit();
-        await session.hydrateEntity(entity1);
+        await session.commit();
         console.log(`now start the server and run:
         curl http://localhost:8081/children/${entity1._id}
         `);
