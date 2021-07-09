@@ -1,13 +1,21 @@
 import 'reflect-metadata';
-import { Application, KernelModule } from '@deepkit/framework';
+import { Application, KernelModule, onServerMainBootstrap, onServerMainBootstrapDone, ServerBootstrapEvent } from '@deepkit/framework';
 import { Logger } from '@deepkit/logger';
 import { cli, Command } from '@deepkit/app';
 import { HelloController } from './hello.controller';
 import { MongoDatabase } from './database';
-import { RouteParameterResolverTag  } from '@deepkit/http';
-import { Entity, EntityResolver } from './db/entity';
+import { HttpKernel, httpWorkflow, RouteParameterResolverTag  } from '@deepkit/http';
+import { Entity } from './db/entity';
+import { EntityResolver } from './entity.resolver';
 import { User } from './db/user';
 
+import express from 'express';
+import { changeClass } from '@deepkit/core';
+import { HttpRequest } from '@deepkit/http';
+
+import { eventDispatcher, EventDispatcher } from '@deepkit/event';
+
+const expressApp = express();
 @cli.controller('initDb')
 export class TestCommand implements Command {
     private async setupDbForTests() {
@@ -33,9 +41,27 @@ export class TestCommand implements Command {
     }
 }
 
-Application.create({
+// flattenReferences(objectOrArray: any) {
+//     if (Array.)
+// }
+
+class ResponseWrapper {
+    @eventDispatcher.listen(httpWorkflow.onResponse)
+    onResponse(event: typeof httpWorkflow.onResponse.event) {
+        console.log('Event', event);
+
+        event.result = {
+            processingTime: (event as any).controllerActionTime,
+            data: event.result,
+        };
+    }
+}
+
+const app = Application.create({
     controllers: [TestCommand, HelloController],
+    listeners: [ ResponseWrapper ],
     providers: [
+        MongoDatabase,
         RouteParameterResolverTag.provide(EntityResolver),
     ],
     imports: [
@@ -45,4 +71,25 @@ Application.create({
             migrateOnStartup: true,
         }),
     ]
-}).run();
+});
+
+const httpKernel = app.get(HttpKernel);
+
+expressApp.use((req, res) => {
+    const deepKitRequest = changeClass(req, HttpRequest);
+
+    httpKernel.handleRequest(
+        deepKitRequest,
+        res,
+    );
+});
+
+async function init() {
+    const eventDispatcher = app.get(EventDispatcher);
+    await eventDispatcher.dispatch(onServerMainBootstrap, new ServerBootstrapEvent());
+    await eventDispatcher.dispatch(onServerMainBootstrapDone, new ServerBootstrapEvent());
+}
+
+expressApp.listen(8081, init);
+
+// app.run();

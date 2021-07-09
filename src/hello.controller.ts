@@ -18,15 +18,15 @@ export class HelloController {
     }
 
     @http.GET('children/:entity')
-    @t.array(Entity)
+    // @t.type(Entity)
     async getChildren(entity: string, someEntity: Entity) {
         console.log('Some entity', someEntity);
 
-        const results = await this.db.query(Entity).filter({
+        const result = await this.db.query(Entity).filter({
             _id: entity,
-        }).useJoinWith('children').end().findOne();
+        }).useJoinWith('author').select('username').end().joinWith('children').findOne();
 
-        return results;
+        return classToPlain(Entity, result);
     }
     
     @http.POST('make-entity/:owner')
